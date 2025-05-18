@@ -1,0 +1,32 @@
+// This is your Prisma schema file.
+// Docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id       String    @id @default(uuid())
+  name     String
+  email    String    @unique
+  password String
+  salary   Float     // ✅ เพิ่ม salary ที่คุณใช้ใน server.js
+  expenses Expense[] @relation("UserExpenses")
+}
+
+model Expense {
+  id       Int       @id @default(autoincrement())
+  category String
+  amount   Float
+  date     DateTime
+  note     String?
+  userId   String
+  user     User      @relation("UserExpenses", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
