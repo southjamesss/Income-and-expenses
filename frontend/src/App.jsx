@@ -19,24 +19,27 @@ function App() {
 
   // ✅ ฟังก์ชัน Login
   const handleLogin = async (email, password) => {
-    try {
-      const res = await fetch("http://localhost:4000/users");
-      const users = await res.json();
-      const foundUser = users.find(
-        (u) => u.email === email && u.password === password
-      );
+  try {
+    const res = await fetch("http://localhost:4000/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-      if (foundUser) {
-        localStorage.setItem("user", JSON.stringify(foundUser));
-        setUser(foundUser);
-        setPage("home");
-      } else {
-        alert("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-      }
-    } catch (err) {
-      console.error("เกิดข้อผิดพลาดในการเข้าสู่ระบบ:", err);
+    const data = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem("user", JSON.stringify(data));
+      setUser(data);
+      setPage("home");
+    } else {
+      alert(data.error || "เข้าสู่ระบบไม่สำเร็จ");
     }
-  };
+  } catch (err) {
+    console.error("เกิดข้อผิดพลาดในการเข้าสู่ระบบ:", err);
+    alert("เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์");
+  }
+};
 
   // ✅ ฟังก์ชัน Register
   const handleRegister = async (formData) => {

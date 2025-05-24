@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcrypt');
 require('dotenv').config();
 
 const app = express();
@@ -30,15 +31,22 @@ app.get('/users', async (req, res) => {
 // POST: สมัครผู้ใช้ใหม่ (Register)
 app.post('/users', async (req, res) => {
   const { name, email, password, salary } = req.body;
+  if (!name || !email || !password || !salary) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
   try {
+    const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
-        password,
+        password: hashedPassword,
         salary: parseFloat(salary),
       },
     });
+
+    console.log(`✅ New user registered: ${email}`);
     res.status(201).json(newUser);
   } catch (err) {
     console.error("❌ Error creating user:", err);
@@ -49,11 +57,24 @@ app.post('/users', async (req, res) => {
 // POST: เข้าสู่ระบบ (Login)
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || user.password !== password) {
+    if (!user) {
+      console.warn(`⚠️ Login failed: User not found for ${email}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      console.warn(`⚠️ Login failed: Incorrect password for ${email}`);
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    console.log(`✅ User logged in: ${user.email}`);
     res.json(user);
   } catch (err) {
     console.error("❌ Login error:", err);
@@ -64,6 +85,10 @@ app.post('/login', async (req, res) => {
 // POST: เพิ่มค่าใช้จ่ายใหม่
 app.post('/expenses', async (req, res) => {
   const { userId, amount, category, date, note } = req.body;
+  if (!userId || !amount || !category || !date) {
+    return res.status(400).json({ error: 'Missing required expense fields' });
+  }
+
   try {
     const newExpense = await prisma.expense.create({
       data: {
@@ -74,6 +99,7 @@ app.post('/expenses', async (req, res) => {
         note,
       },
     });
+    console.log(`✅ Expense added for user ${userId}`);
     res.status(201).json(newExpense);
   } catch (err) {
     console.error("❌ Error creating expense:", err);
@@ -88,7 +114,8 @@ app.delete('/expenses/:id', async (req, res) => {
     await prisma.expense.delete({
       where: { id: parseInt(id) }
     });
-    res.status(204).end(); // ส่งกลับว่าไม่มีเนื้อหา (ลบสำเร็จ)
+    console.log(`🗑️ Expense deleted: ID ${id}`);
+    res.status(204).end();
   } catch (err) {
     console.error("❌ Error deleting expense:", err);
     res.status(500).json({ error: 'Unable to delete expense.' });
